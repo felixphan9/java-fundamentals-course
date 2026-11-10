@@ -5,27 +5,28 @@ import edu.duke.StorageResource;
 
 public class Part1 {
     public int findStopCodon (String dna, int startIndex, String stopCodon) {
-        int stopIndex = dna.indexOf(stopCodon, startIndex);
-        if (stopIndex == -1)
-        {
-            return dna.length();
+        int currIndex = dna.indexOf(stopCodon, startIndex + 3);
+        while(currIndex != -1) {
+            int diff = currIndex - startIndex;
+            if( diff % 3 == 0 ) {
+                return currIndex;
+            } else {
+                currIndex = dna.indexOf(stopCodon, currIndex + 1);
+            }
         }
-        if ((stopIndex - startIndex) % 3 == 0){
-            return stopIndex;
-        }
-        else {
-            return dna.length();
-        }
+        return dna.length();
     }
 
-    public String findGene (String dna){
-        int startIndex = dna.indexOf("ATG");
-        if (startIndex == -1) {
+    public String findGene (String dna, int where){
+        dna = dna.toUpperCase();
+        int startIndex = dna.indexOf("ATG", where);
+        if(startIndex == -1) {
             return "";
         }
-        int stopIndex = findStopCodon(dna, startIndex, "TAA");
-        int temp = Math.min(stopIndex, findStopCodon(dna, startIndex, "TAG"));
-        stopIndex = Math.min(temp, findStopCodon(dna, startIndex, "TGA"));
+        int taaIndex = findStopCodon(dna, startIndex, "TAA");
+        int tagIndex = findStopCodon(dna, startIndex, "TAG");
+        int tgaIndex = findStopCodon(dna, startIndex, "TGA");
+        int stopIndex = Math.min(taaIndex, Math.min(tagIndex, tgaIndex));
         
         if (stopIndex == dna.length()) {
             return "";
@@ -35,29 +36,30 @@ public class Part1 {
     }
 
     public String printAllGene (String dna) {
-
+        int startIndex = 0;
         while (true) {
-            String gene = findGene(dna);
-            if (gene == "") {
+            int currIndex = dna.indexOf("ATG", startIndex);
+            if (currIndex == -1) {
                 break;
             }
+            String gene = findGene(dna, currIndex);
+            
             System.out.println("Gene founded:" + gene);
-            int geneIndex = dna.indexOf(gene);
-            dna = dna.substring(geneIndex + gene.length());
         }
         return "";
     }
     
     public StorageResource getAllGenes (String dna) {
         StorageResource store = new StorageResource();
+        int startIndex = 0;
         while (true) {
-            String gene = findGene(dna);
-            if (gene == "") {
+            String currentGene = findGene(dna, startIndex);
+            if (currentGene.isEmpty()) {
                 break;
-            }  
-            store.add(gene);
-            int geneIndex = dna.indexOf(gene);
-            dna = dna.substring(geneIndex + gene.length());
+            }
+            store.add(currentGene);
+            startIndex = dna.indexOf(currentGene, startIndex + 1) + currentGene.length();
+            // System.out.println("Gene founded:" + gene);
         }
         return store;
     }
@@ -72,7 +74,7 @@ public class Part1 {
                 break;
             }
             countC++;
-            dna = dna.substring(0,cIndex) + dna.substring(cIndex + 1);
+            dna = dna.substring(0, cIndex) + dna.substring(cIndex + 1);
         }
         
         while (true) {
@@ -94,7 +96,7 @@ public class Part1 {
                 return countCTG;
             }
             countCTG++;
-            dna = dna.substring(0,ctgIndex) + dna.substring(ctgIndex + 1);
+            dna = dna.substring(0,ctgIndex) + dna.substring(ctgIndex + 3);
         }
     }
 
@@ -102,27 +104,30 @@ public class Part1 {
         // int totalItems = sr.size();
         int count = 0;
         int maxLength = 0;
+        int countCGRatio = 0;
         // if (totalItems == 0) {
-
+        
         // }
         for (String item : sr.data()) {
             int temp = item.length();
             if (item.length() > 60) {
                 count++;
-                System.out.println("Items that are longer than 60 characters: " + item);   
+                // System.out.println("Items that are longer than 60 characters: " + item);   
             }
-            System.out.println("Number of Strings in sr that are longer than 60 characters: " + count);
             float cgRatio = cgRatio(item);
-            System.out.println("cgRatio: " + cgRatio);
-            int countCGRatio = 0;
+            // System.out.println("cgRatio: " + cgRatio);
+            
             if (cgRatio > 0.35) {
-                System.out.println("Items that have C-G ratio higher than 0.35: " + item);
+                // System.out.println("Items that have C-G ratio higher than 0.35: " + item);
                 countCGRatio++;
             }
-            System.out.println("Number of items in sr that have C-G ratio higher than 0.35: " + countCGRatio);
+            
             maxLength = Math.max(temp, maxLength);
-            System.out.println("Length of the longest gene in sr: " + maxLength);
+            
         }
+        System.out.println("Number of genes in sr that are longer than 60 characters: " + count);
+        System.out.println("Number of items in sr that have C-G ratio higher than 0.35: " + countCGRatio);
+        System.out.println("Length of the longest gene in sr: " + maxLength);
     }
     public void testProcessGenes(String dna) {
         // String dna1 = "AAATGXXXYYYTAACCC";
@@ -140,7 +145,11 @@ public class Part1 {
         // processGenes(sr);
         // sr = getAllGenes(dna5);
         StorageResource sr = getAllGenes(dna);
+        int countCTG = countCTG(dna);
+        System.out.println("Number of condons CTG: " + countCTG);
         processGenes(sr);
+        int totalItems = sr.size();
+        System.out.println("Number of genes: " + totalItems);
     }
     public void testFindStopCodon() {
         // Setup test DNA string
@@ -163,43 +172,7 @@ public class Part1 {
         System.out.println("Test 4 (Tìm 'TAG' từ index 6): Kết quả = " + index4 + " | Kỳ vọng = 14");
     }
     public void testFindGene() {
-        // Test 1: Gen hợp lệ (có ATG và TAA in-frame, độ dài chia hết cho 3)
-        // ATG (0) -> XXXYYY (6 ký tự) -> TAA (12) => Đoạn gen: ATGXXXYYYTAA
-        String dna1 = "AAATGXXXYYYTAACCC";
-        String gene1 = findGene(dna1);
-        System.out.println("Test 1 (Gen hợp lệ):");
-        System.out.println("   DNA      : " + dna1);
-        System.out.println("   Kết quả  : " + gene1 + " | Kỳ vọng: ATGXXXYYYTAA\n");
 
-        // Test 2: Không có Start Codon (ATG)
-        String dna2 = "CCXXXYYYTAACCC";
-        String gene2 = findGene(dna2);
-        System.out.println("Test 2 (Không có ATG):");
-        System.out.println("   DNA      : " + dna2);
-        System.out.println("   Kết quả  : '" + gene2 + "' | Kỳ vọng: ''\n");
-
-        // Test 3: Có ATG nhưng không có Stop Codon nào
-        String dna3 = "CCATGXXXYYYGGGCCC";
-        String gene3 = findGene(dna3);
-        System.out.println("Test 3 (Không có Stop Codon):");
-        System.out.println("   DNA      : " + dna3);
-        System.out.println("   Kết quả  : '" + gene3 + "' | Kỳ vọng: ''\n");
-
-        // Test 4: Stop Codon bị out-of-frame (đoạn giữa không chia hết cho 3)
-        // ATG -> XXXY (4 ký tự) -> TAA
-        String dna4 = "CCATGXXXYTAACCC";
-        String gene4 = findGene(dna4);
-        System.out.println("Test 4 (Stop Codon out-of-frame):");
-        System.out.println("   DNA      : " + dna4);
-        System.out.println("   Kết quả  : '" + gene4 + "' | Kỳ vọng: ''\n");
-
-        // Test 5: Tìm Stop Codon hợp lệ nhỏ nhất/đầu tiên trong 3 loại (TAA, TAG, TGA)
-        // ATG -> XXXYYY -> TAG xuất hiện trước TAA
-        String dna5 = "CCATGXXXYYYTAGXXTAACCC";
-        String gene5 = findGene(dna5);
-        System.out.println("Test 5 (Nhiều Stop Codon):");
-        System.out.println("   DNA      : " + dna5);
-        System.out.println("   Kết quả  : " + gene5 + " | Kỳ vọng: ATGXXXYYYTAG\n");
     }
     public void testPrintAllGene() {
         // -------------------------------------------------------------------------
@@ -209,7 +182,7 @@ public class Part1 {
         // Gen 3: ATGCCCTTTTGA
         // -------------------------------------------------------------------------
         System.out.println("=== TEST 1: DNA có 3 Gen nối tiếp ===");
-        String dna1 = "CCATGXXXYYYTAAATGGGGATGAAAGGGTAGTTTATGCCCTTTTGACCC";
+        String dna1 = "CCATGXXATGYTAAATGGGGATGAAAGGGTAGTTTATGCCCTTTTGACCC";
         printAllGene(dna1);
         /* Kỳ vọng in ra:
         Gene found: ATGXXXYYYTAA
